@@ -10,6 +10,12 @@ import com.junior.boletapp.tickets.repository.TicketCategoryRepository;
 import com.junior.boletapp.tickets.service.ITicketCategoryService;
 import com.junior.boletapp.tickets.validation.TicketCategoryValidation;
 import lombok.RequiredArgsConstructor;
+import com.mongodb.client.result.UpdateResult;
+import org.springframework.data.mongodb.MongoExpression;
+import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.core.query.Criteria;
+import org.springframework.data.mongodb.core.query.Query;
+import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -20,14 +26,20 @@ public class TicketCategoryService implements ITicketCategoryService {
 
     private final TicketCategoryRepository ticketCategoryRepository;
     private final IMatchService matchService;
+    private  final MongoTemplate mongo;
 
 
     @Override
     public TicketCategory addCategory(TicketCategory category) {
         TicketCategoryValidation.validate(category);
+
         Match match = matchService.getMatchById(category.getMatchId());
         if (match.getStatus() != MatchStatusEnum.SCHEDULED) {
             throw new BadRequestException("Cannot add category to a match that is not scheduled");
+        }
+
+        if( ticketCategoryRepository.existsByMatchIdAndSection(category.getMatchId(), category.getSection())) {
+            throw new BadRequestException("Category for this section already exists in the match");
         }
 
         return ticketCategoryRepository.save(category);
@@ -81,5 +93,26 @@ public class TicketCategoryService implements ITicketCategoryService {
             throw new BadRequestException("Match ID cannot be null or empty");
         }
         return ticketCategoryRepository.getAllCategoriesByMatchId(matchId);
+    }
+
+    @Override
+    public boolean tryIncrementSold(String categoryId, int delta) {
+        // Regla de disponibilidad según el signo de delta
+        MongoExpression guard = (delta >= 0)
+                // soldTickets < capacity  (para vender)
+                ? MongoExpression.create("{ $lt: [ '$soldTickets', '$capacity' ] }")
+                // soldTickets >= -delta   (para revertir/cancelar)
+                : MongoExpression.create("{ $gte: [ '$soldTickets', " + (-delta) + " ] }");
+
+        Query q = new Query(new Criteria().andOperator(
+                Criteria.where("_id").is(categoryId),
+                Criteria.where("active").is(true),
+                Criteria.expr(guard) // <-- AQUÍ va el MongoExpression
+        ));
+
+        Update u = new Update().inc("soldTickets", delta);
+
+        UpdateResult res = mongo.updateFirst(q, u, TicketCategory.class);
+        return res.getModifiedCount() == 1;
     }
 }

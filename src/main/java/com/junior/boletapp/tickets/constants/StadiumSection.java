@@ -9,5 +9,6 @@ public enum StadiumSection {
     LOW_NORTH,  // Norte Baja
     LOW_SOUTH,  // Sur Baja
     LOW_EAST,   // Oriental Baja
-    LOW_WEST    // Occidental Baja
+    LOW_WEST ,   // Occidental Baja
+    VIP
 }

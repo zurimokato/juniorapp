@@ -23,6 +23,13 @@ public class TicketCategoryController implements TicketCategoryApi {
     }
 
     @Override
+    public ResponseEntity<TicketCategoryResponse> getTicketCategoryById(String categoryId) {
+        TicketCategoryResponse response=ticketCategoryMapper.toResponse(ticketCategoryService.getCategoryById(categoryId));
+
+        return ResponseEntity.ok(response);
+    }
+
+    @Override
     public ResponseEntity<TicketCategoryResponse> createTicketCategory(String matchId, TicketCategoryRequest ticketCategoryRequest) {
        TicketCategoryResponse response=ticketCategoryMapper.toResponse(ticketCategoryService.addCategory(ticketCategoryMapper.toModel(ticketCategoryRequest)));
        return ResponseEntity.ok(response);

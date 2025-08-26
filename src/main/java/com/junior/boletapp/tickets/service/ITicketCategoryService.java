@@ -12,4 +12,6 @@ public interface ITicketCategoryService {
     void deleteCategory(String id);
     List<TicketCategory> getAllCategoriesByMatch(String matchId);
 
+    boolean tryIncrementSold(String categoryId, int delta);
+
 }
